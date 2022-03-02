@@ -11,6 +11,11 @@ import com.acrcloud.rec.ACRCloudClient
 import com.acrcloud.rec.ACRCloudConfig
 import com.acrcloud.rec.ACRCloudResult
 import com.acrcloud.rec.IACRCloudListener
+import com.acrcloud.utils.ACRCloudRecognizer
+import java.io.File
+import java.io.FileInputStream 
+import java.io.IOException
+import java.lang.Exception
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -83,11 +88,18 @@ public class FlutterAcrcloudPlugin: FlutterPlugin, MethodCallHandler, PluginRegi
         result.error("ALREADY_LISTENING", "Already listening", null)
         return
       }
+      
+    
 
       isListening = true
       client.startRecognize()
       result.success(true)
     }
+    
+      else if (call.method == "fromfile") {
+        val filePath = call.argument<String>("filePath")
+      audiofromfile(call, result,filePath)
+      }
 
     else if (call.method == "cancel") {
       if (!isListening) {
@@ -119,9 +131,51 @@ public class FlutterAcrcloudPlugin: FlutterPlugin, MethodCallHandler, PluginRegi
     config.recorderConfig.channels = 1
     config.recorderConfig.isVolumeCallback = true
     config.protocol = ACRCloudConfig.NetworkProtocol.HTTPS
-
+    //config.put("timeout", 10);
     client = ACRCloudClient()
     client.initWithConfig(config)
+
+    result.success(true)
+  }
+  
+  
+  private fun audiofromfile(@NonNull call: MethodCall, @NonNull result: Result,path: String?) {
+   File file = new File(path);
+//         byte[] buffer = new byte[3 * 1024 * 1024];
+    var buffer: Array<Byte> = Array<Byte>(3 * 1024 * 1024) 
+        if (!file.exists()) {
+            result.success(false)
+            return
+        }
+        FileInputStream fin = null
+        int bufferLen = 0
+        try {
+            fin = FileInputStream(file)
+            bufferLen = fin.read(buffer, 0, buffer.length)
+        } catch (e: Exception) {
+            //e.printStackTrace();
+          println("error while reading file input stream in acrcloud plugin");
+        } finally {
+            try {
+                if (fin != null) {
+                        fin.close()
+                }
+            } catch (e: IOException) {
+//                 e.printStackTrace();
+              println("error while closing file input stream in acrcloud plugin");
+            }
+        }
+        println("bufferLen=" + bufferLen);
+
+        if (bufferLen <= 0){
+        result.success(false)
+            return
+        }
+
+        // It will skip 80 seconds from the begginning of (buffer).
+        result = re.recognizeByFileBuffer(buffer, bufferLen, 0)
+        println("the result for arccloud is ")
+        println(result)
 
     result.success(true)
   }
